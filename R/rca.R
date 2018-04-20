@@ -1,5 +1,6 @@
 #' Relevant Component Analysis
 #'
+#' @description
 #' \code{rca} performs relevant component analysis (RCA) for the given data.
 #' It takes a data set and a set of positive constraints as arguments
 #' and returns a linear transformation of the data space into better
@@ -12,10 +13,10 @@
 #' @param x \code{n * d} matrix or data frame of original data.
 #'
 #' @param chunks a vector of size \code{N} describing the chunklets:
-#'          \code{-1} in the \code{i}-th place says that point \code{i} does not
-#'          belong to any chunklet; integer \code{j} in place \code{i} says
-#'          that point \code{i} belongs to chunklet \code{j};
-#'          The chunklets indexes should be \code{1:number-of-chunklets}.
+#' \code{-1} in the \code{i}-th place says that point \code{i} does not
+#' belong to any chunklet; integer \code{j} in place \code{i} says
+#' that point \code{i} belongs to chunklet \code{j};
+#' The chunklets indexes should be \code{1:number-of-chunklets}.
 #'
 #' @param useD optional. When not given, RCA is done in the
 #' original dimension and \code{B} is full rank. When \code{useD} is given,
@@ -51,7 +52,7 @@
 #' e.g. \code{{1, 3, 7}} and \code{{4, 6}}, might belong to the
 #' same class and might belong to different classes.
 #'
-#' @author Nan Xiao <\url{http://nanx.me}>
+#' @author Nan Xiao <\url{https://nanx.me}>
 #'
 #' @importFrom stats cov
 #'
@@ -64,84 +65,59 @@
 #' Machine Learning (ICML2003)}
 #'
 #' @examples
-#' library("MASS")  # generate synthetic MVN data
+#' library("MASS") # generate synthetic multivariate normal data
 #' set.seed(42)
-#' k = 100L         # sample size of each class
-#' n = 3L           # specify how many classes
-#' N = k * n        # total sample size
-#' x1 = mvrnorm(k, mu = c(-8, 6), matrix(c(15, 1, 2, 10),   ncol = 2))
-#' x2 = mvrnorm(k, mu = c(0, 0),  matrix(c(15, 0.5, 2, 10), ncol = 2))
-#' x3 = mvrnorm(k, mu = c(8, -6), matrix(c(15, 1, 2, 10),   ncol = 2))
-#' x = as.data.frame(rbind(x1, x2, x3))  # predictor
-#' y = gl(n, k)  # response
+#' k <- 100L # sample size of each class
+#' n <- 3L # specify how many classes
+#' N <- k * n # total sample size
+#' x1 <- mvrnorm(k, mu = c(-16, 8), matrix(c(15, 1, 2, 10), ncol = 2))
+#' x2 <- mvrnorm(k, mu = c(0, 0), matrix(c(15, 1, 2, 10), ncol = 2))
+#' x3 <- mvrnorm(k, mu = c(16, -8), matrix(c(15, 1, 2, 10), ncol = 2))
+#' x <- as.data.frame(rbind(x1, x2, x3)) # predictors
+#' y <- gl(n, k) # response
 #'
-#' # The fully labeled data set with 3 classes
-#' plot(x[, 1L], x[, 2L], bg = c("#E41A1C", "#377EB8", "#4DAF4A")[y],
-#'      pch = rep(c(22, 21, 25), each = k))
+#' # fully labeled data set with 3 classes
+#' # need to use a line in 2D to classify
+#' plot(x[, 1L], x[, 2L],
+#'   bg = c("#E41A1C", "#377EB8", "#4DAF4A")[y],
+#'   pch = rep(c(22, 21, 25), each = k)
+#' )
 #'
-#' # Same data unlabeled; clearly the class structure is less evident
-#' plot(x[, 1L], x[, 2L])
+#' # generate synthetic chunklets
+#' chunks <- vector("list", 300)
+#' for (i in 1:100) chunks[[i]] <- sample(1L:100L, 10L)
+#' for (i in 101:200) chunks[[i]] <- sample(101L:200L, 10L)
+#' for (i in 201:300) chunks[[i]] <- sample(201L:300L, 10L)
 #'
-#' # Manually generating synthetic chunklets
-#' chunk1 = sample(1L:100L, 3L)
-#' chunk2 = sample(1L:100L, 3L)
-#' chunk3 = sample(1L:100L, 3L)
-#' chunk4 = sample(1L:100L, 3L)
-#' chunk5 = sample(1L:100L, 3L)
-#' chunk6 = sample(1L:100L, 3L)
-#' chunk7 = sample(101L:200L, 3L)
-#' chunk8 = sample(101L:200L, 3L)
-#' chunk9 = sample(101L:200L, 3L)
-#' chunk10 = sample(101L:200L, 3L)
-#' chunk11 = sample(101L:200L, 3L)
-#' chunk12 = sample(101L:200L, 3L)
-#' chunk13 = sample(101L:200L, 3L)
-#' chunk14 = sample(101L:200L, 3L)
-#' chunk15 = sample(201L:300L, 3L)
-#' chunk16 = sample(201L:300L, 3L)
-#' chunk17 = sample(201L:300L, 3L)
-#' chunk18 = sample(201L:300L, 3L)
-#' chunk19 = sample(201L:300L, 3L)
-#' chunk20 = sample(201L:300L, 3L)
-#' chks = x[c(chunk1, chunk2, chunk3, chunk4, chunk5,
-#'            chunk6, chunk7, chunk8, chunk9, chunk10,
-#'            chunk11, chunk12, chunk13, chunk14, chunk15,
-#'            chunk16, chunk17, chunk18, chunk19, chunk20), ]
-#' chunks = list(chunk1, chunk2, chunk3, chunk4, chunk5,
-#'               chunk6, chunk7, chunk8, chunk9, chunk10,
-#'               chunk11, chunk12, chunk13, chunk14, chunk15,
-#'               chunk16, chunk17, chunk18, chunk19, chunk20)
+#' chks <- x[unlist(chunks), ]
 #'
-#' # Make "chunklet" vector to feed the chunks argument
-#' chunksvec = rep(-1L, nrow(x))
-#' for ( i in 1L:length(chunks) ) {
-#'   for ( j in 1L:length(chunks[[i]]) ) {
-#'     chunksvec[chunks[[i]][j]] = i
+#' # make "chunklet" vector to feed the chunks argument
+#' chunksvec <- rep(-1L, nrow(x))
+#' for (i in 1L:length(chunks)) {
+#'   for (j in 1L:length(chunks[[i]])) {
+#'     chunksvec[chunks[[i]][j]] <- i
 #'   }
 #' }
 #'
-#' # Chunklets for the RCA algorithm
-#' plot(chks[, 1L], chks[, 2L], col = rep(1L:20L, each = 3L),
-#'      pch = rep(0L:19L, each = 3L))
+#' # relevant component analysis
+#' rcs <- rca(x, chunksvec)
 #'
-#' # RCA suggested transformation of the data
-#' rca(x, chunksvec)$RCA
+#' # learned transformation of the data
+#' rcs$RCA
 #'
-#' # RCA suggested Mahalanobis matrix
-#' rca(x, chunksvec)$B
+#' # learned Mahalanobis distance metric
+#' rcs$B
 #'
-#' # Whitening transformation applied to the  chunklets
-#' chkTransformed = as.matrix(chks) %*% rca(x, chunksvec)$RCA
+#' # whitening transformation applied to the chunklets
+#' chkTransformed <- as.matrix(chks) %*% rcs$RCA
 #'
-#' plot(chkTransformed[, 1L], chkTransformed[, 2L],
-#'      col = rep(1L:20L, each = 3L),
-#'      pch = rep(0L:19L, each = 3L))
-#'
-#' # Origin data after applying RCA transformation
-#' xnew = rca(x, chunksvec)$newX
+#' # original data after applying RCA transformation
+#' # easier to classify - using only horizontal lines
+#' xnew <- rcs$newX
 #' plot(xnew[, 1L], xnew[, 2L],
-#'      bg = c("#E41A1C", "#377EB8", "#4DAF4A")[gl(n, k)],
-#'      pch = c(rep(22, k), rep(21, k), rep(25, k)))
+#'   bg = c("#E41A1C", "#377EB8", "#4DAF4A")[gl(n, k)],
+#'   pch = c(rep(22, k), rep(21, k), rep(25, k))
+#' )
 
 rca = function(x, chunks, useD = NULL) {
 
@@ -208,6 +184,7 @@ rca = function(x, chunks, useD = NULL) {
 
   B = RCA %*% t(RCA)
 
-  return(list('B' = B, 'RCA' = RCA, 'newX' = newX))
+  res = list('B' = B, 'RCA' = RCA, 'newX' = newX)
+  res
 
 }

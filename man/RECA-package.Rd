@@ -10,10 +10,9 @@ Relevant Component Analysis (RCA).
 }
 \details{
 \tabular{ll}{ Package: \tab RECA\cr Type: \tab Package\cr
-Version: \tab 1.3\cr License: \tab GPL (>= 2)\cr }
+Version: \tab 1.3\cr License: \tab GPL-3\cr }
 }
 \note{
-Bug reports and feature requests could be sent to
+Bug reports and feature requests can be sent to
 \url{https://github.com/road2stat/RECA/issues}.
 }
-
